@@ -102,10 +102,11 @@ class QLearningAgent(ReinforcementAgent):
         p = self.epsilon  # p est la probabilité associée à l'exploration
         if util.flipCoin(p):  # Simulation d'un lancer de piece
             action = random.choice(legalActions)  # Si le lancer renvoit True, l'agent explore, une action aléatoire
-            # est choisit parmi les actions légales
+            # est choisit parmi les actions légales (ceci correspond à une exploration, c'est associé à une forte
+            # probabilité d'avoir true)
         else:
             action = self.getPolicy(state)  # Si non l'agent exploite, l'action optimale selon la politique actuelle
-            # est choisit
+            # est choisit (ceci correspond à une intensification, c'est associé à une faible probabilité d'avoir true)
         return action  # Retour de l'action ou de None si pas daction
 
     def update(self, state, action, nextState, reward):
@@ -164,36 +165,45 @@ class ApproximateQAgent(PacmanQAgent):
      and update.  All other QLearningAgent functions
      should work as is.
   """
-
     def __init__(self, extractor='IdentityExtractor', **args):
         self.featExtractor = util.lookup(extractor, globals())()
         PacmanQAgent.__init__(self, **args)
 
-        # You might want to initialize weights here.
-        "*** YOUR CODE HERE ***"
+        self.weights = util.Counter()  # Initialisation des poids comme un Counter (dictionnaire avec valeur par
+        # défaut 0)
 
     def getQValue(self, state, action):
         """
       Should return Q(state,action) = w * featureVector
       where * is the dotProduct operator
     """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        features = self.featExtractor.getFeatures(state, action)  # Récupérer les caractéristiques pour l'état et
+        # l'action donnés
+        q_value = sum(self.weights[feature] * value for feature, value in features.items())  # Calculer le produit
+        # scalaire entre les poids et les caractéristiques
+        return q_value
 
     def update(self, state, action, nextState, reward):
         """
-       Should update your weights based on transition
-    """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        Updates the weights based on the transition.
+        """
+        features = self.featExtractor.getFeatures(state, action)  # Récupérer les caractéristiques pour l'état et
+        # l'action donnés
+
+        # Calculer l'erreur de différence temporelle (TD)
+        q_current = self.getQValue(state, action)
+        q_next = self.getValue(nextState)
+        td_error = (reward + self.discount * q_next) - q_current
+
+        # Mettre à jour chaque poids
+        for feature, value in features.items():
+            self.weights[feature] += self.alpha * td_error * value
 
     def final(self, state):
         "Called at the end of each game."
         # call the super-class final method
         PacmanQAgent.final(self, state)
 
-        # did we finish training?
-        if self.episodesSoFar == self.numTraining:
-            # you might want to print your weights here for debugging
-            "*** YOUR CODE HERE ***"
-            pass
+        if self.episodesSoFar == self.numTraining: # Vérifier si la phase d'entraînement est terminée
+
+            print("Final weights:", self.weights) # Afficher les poids pour analyse
